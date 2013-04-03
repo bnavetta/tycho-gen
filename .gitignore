@@ -1,0 +1,10 @@
+*jar
+*.war
+*.class
+
+build/
+.local-repository/
+.gradle
+
+!gradle/
+!gradle/wrapper/gradle-wrapper.jar
