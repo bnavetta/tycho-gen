@@ -1,46 +1,27 @@
 package com.bennavetta.util.tycho;
 
-import java.util.List;
-
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Repository;
+import org.sonatype.aether.artifact.Artifact;
 
 public interface WrapRequest
 {
 	/**
-	 * The parent project that the wrapper will be a module of. The wrapper module will be created
+	 * The parent project that the wrappers will be modules of. The wrapper modules will be created
 	 * in a subdirectory of the parent.
 	 * @return a valid {@code Model}
 	 */
 	public Model getParent();
 	
 	/**
-	 * The group ID of the project to wrap
-	 * @return a valid group ID (there must be an existing groupId/artifactId/version combination in Maven Central or one of the given repositories)
+	 * The artifacts to wrap. This does not need to include transitive dependencies.
+	 * @return a list of artifacts. Must not be {@code null}
 	 */
-	public String getGroupId();
+	public Iterable<Artifact> getArtifacts();
 	
 	/**
-	 * The artifact Id of the project to wrap
-	 * @return a valid artifact ID (there must be an existing groupId/artifactId/version combination in Maven Central or one of the given repositories)
-	 */
-	public String getArtifactId();
-	
-	/**
-	 * The version of the project to wrap
-	 * @return a valid version (there must be an existing groupId/artifactId/version combination in Maven Central or one of the given repositories)
-	 */
-	public String getVersion();
-	
-	/**
-	 * Any repositories needed to locate the wrapped project.
+	 * Any repositories needed to locate the wrapped projects.
 	 * @return a list of configured repositories, or {@code null}
 	 */
-	public List<Repository> getRepositories();
-	
-	/**
-	 * The version of Tycho to use
-	 * @return a valid Eclipse Tycho version
-	 */
-	public String getTychoVersion();
+	public Iterable<Repository> getRepositories();
 }

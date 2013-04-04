@@ -35,14 +35,13 @@ import org.sonatype.aether.graph.DependencyNode;
 import org.sonatype.aether.repository.RemoteRepository;
 import org.sonatype.aether.resolution.DependencyRequest;
 import org.sonatype.aether.resolution.DependencyResolutionException;
-import org.sonatype.aether.util.artifact.DefaultArtifact;
 import org.sonatype.aether.util.artifact.JavaScopes;
 import org.sonatype.aether.util.filter.DependencyFilterUtils;
+import org.sonatype.aether.util.graph.PreorderNodeListGenerator;
 
 import aQute.lib.osgi.Analyzer;
 
 import com.bennavetta.util.tycho.BundleGenerator;
-import com.bennavetta.util.tycho.DefaultWrapRequest;
 import com.bennavetta.util.tycho.WrapException;
 import com.bennavetta.util.tycho.WrapRequest;
 import com.bennavetta.util.tycho.WrapperGenerator;
@@ -64,12 +63,13 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 	public void generate(WrapRequest request) throws WrapException
 	{
 		RepositorySystemSession session = Maven.repositorySystemSession(repoSystem);
-		//Artifact toWrap = new DefaultArtifact(request.getGroupId(), request.getArtifactId(), null, request.getVersion());
-		Artifact toWrap = new DefaultArtifact(request.getGroupId() + ":" + request.getArtifactId() + ":" + request.getVersion());
 		
 		CollectRequest collect = new CollectRequest();
-		collect.setRoot(new Dependency(toWrap, JavaScopes.COMPILE));
 		collect.addRepository(Maven.central());
+		for(Artifact artifact : request.getArtifacts())
+		{
+			collect.addDependency(new Dependency(artifact, JavaScopes.COMPILE));
+		}
 		
 		// Add explicitly provided repositories
 		if(request.getRepositories() != null)
@@ -83,9 +83,24 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 		{
 			DependencyFilter classpathFilter = DependencyFilterUtils.classpathFilter( JavaScopes.COMPILE );
 			DependencyRequest dependencyRequest = new DependencyRequest(collect, classpathFilter);
-			DependencyNode node = repoSystem.resolveDependencies(session, dependencyRequest).getRoot(); // download the dependencies so they can be processed
+			DependencyNode root = repoSystem.resolveDependencies(session, dependencyRequest).getRoot(); // download the dependencies so they can be processed
 			
-			createWrapper(request, session, node);
+			// Figure out which version of each dependency to use
+			VersionResolver resolver = new VersionResolver();
+			resolver.resolve(root);
+			
+			// Flatten the node graph
+			PreorderNodeListGenerator listGenerator = new PreorderNodeListGenerator();
+			root.accept(listGenerator);
+			for(DependencyNode node : listGenerator.getNodes())
+			{
+				if(node.getVersion().equals(resolver.getVersion(node)))
+				{
+					createWrapper(request, session, node);
+				}
+			}
+			
+			//createWrapper(request, session, node);
 		}
 		catch (DependencyResolutionException e)
 		{
@@ -93,26 +108,26 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 		}
 	}
 	
-	private String createWrapper(WrapRequest request, RepositorySystemSession session, DependencyNode node) throws WrapException
+	private void createWrapper(WrapRequest request, RepositorySystemSession session, DependencyNode node) throws WrapException
 	{
-		if(node.getDependency().getArtifact().getFile() == null)
-		{
-			log.warn("Skipping {} - no jar file (is it a runtime dependency?", node);
-			return null;
-		}
-		
-		List<String> deps = new ArrayList<>();
+		Artifact artifact = node.getDependency().getArtifact();
+		List<String> deps = new ArrayList<>(node.getChildren().size());
 		for(DependencyNode dependency : node.getChildren())
 		{
-			deps.add(createWrapper(request, session, dependency));
+			deps.add(metadata.getSymbolicName(dependency.getDependency().getArtifact()));
 		}
+		
+		if(artifact.getFile() == null)
+		{
+			log.warn("Skipping {} - no jar file (is it a runtime dependency?)", artifact);
+			return;
+		}
+		
 		try
 		{
-			log.info("Wrapping {}", node);
-			Artifact artifact = node.getDependency().getArtifact();
+			log.info("Wrapping {}", artifact);
 			String symbolicName = metadata.getSymbolicName(artifact);
 			String bundleName = metadata.getBundleName(artifact);
-			log.info("Symbolic name: {}, name: {}", symbolicName, bundleName);
 			if(!request.getParent().getModules().contains(symbolicName)) // check first in case the wrapper is being regenerated/updated
 				request.getParent().addModule(symbolicName);
 			
@@ -168,6 +183,7 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 				analyzer.setProperty("Import-Package", "*");
 				
 				Manifest manifest = analyzer.calcManifest();
+				log.debug("Manifest: {}", manifest);
 				File metaInf = new File(projectDir, "META-INF");
 				if(!metaInf.exists() && !metaInf.mkdir())
 					throw new WrapException("Unable to create META-INF directory", request);
@@ -176,7 +192,6 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 					manifest.write(manifestOut);
 				}
 			}
-			
 			
 			// Write build.properties while extracting jar
 			Properties buildProps = new Properties();
@@ -190,6 +205,10 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 				while(entries.hasMoreElements())
 				{
 					JarEntry entry = entries.nextElement();
+					
+					if(entry.getName().endsWith("MANIFEST.MF"))
+						continue;
+					
 					includes.add(Iterables.get(Splitter.on('/').split(entry.getName()), 0)); // get the first path component (dir or file in root)
 					File outFile = new File(projectDir, entry.getName());
 					if(entry.isDirectory())
@@ -215,8 +234,6 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 			{
 				buildProps.store(propsOut, "Autogenerated by " + getClass().getName() + " on " + new Date());
 			}
-			
-			return symbolicName;
 		}
 		catch(Exception e)
 		{
@@ -250,9 +267,9 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 		DefaultWrapperGenerator generator = new DefaultWrapperGenerator();
 		DefaultWrapRequest req = new DefaultWrapRequest();
 		req.setParent(Maven.createModel(new File("/Users/ben/workspaces/gae-website/appsite-client/thirdparty/pom.xml")));
-		req.setGroupId("org.codehaus.jedi");
-		req.setArtifactId("jedi-core");
-		req.setVersion("3.0.5");
+		req.addArtifact("org.codehaus.jedi", "jedi-core", "3.0.5");
+		req.addArtifact("org.springframework", "spring-webmvc", "3.2.2.RELEASE");
+		req.addArtifact("org.springframework", "spring-orm", "2.5.6");
 		generator.generate(req);
 		// then write modified parent pom
 	}
