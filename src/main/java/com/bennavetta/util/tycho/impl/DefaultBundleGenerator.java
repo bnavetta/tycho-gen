@@ -8,11 +8,16 @@ import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import org.apache.maven.model.Model;
+import org.apache.maven.model.building.ModelBuildingException;
+import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.sonatype.aether.artifact.Artifact;
 
 import com.bennavetta.util.tycho.BundleGenerator;
+import com.bennavetta.util.tycho.maven.Maven;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
@@ -23,7 +28,7 @@ import com.google.common.primitives.Ints;
  * @see <a href="http://fusesource.com/docs/esb/4.4.1/esb_deploy_osgi/ESBMavenOSGiConfig.html">FuseSource Maven OSGi Config</a>
  */
 public class DefaultBundleGenerator implements BundleGenerator
-{
+{	
 	private static final Ordering<String> PATH_COMPONENTS = new Ordering<String>() {
 		@Override
 		public int compare(String a, String b)
@@ -101,7 +106,21 @@ public class DefaultBundleGenerator implements BundleGenerator
 	@Override
 	public String getBundleName(Artifact artifact)
 	{
-		return artifact.getGroupId() + " " +  artifact.getArtifactId(); // don't have access to the name
+		//return artifact.getGroupId() + " " +  artifact.getArtifactId(); // don't have access to the name
+		try
+		{
+			Model pom = Maven.getModel(artifact);
+			String name = pom.getName();
+			System.out.println(pom);
+			if(Strings.isNullOrEmpty(name))
+				return artifact.getArtifactId();
+			return name;
+		}
+		catch(ModelBuildingException | ComponentLookupException e)
+		{
+			System.err.println("Exception: " + e);
+			return artifact.getArtifactId(); // don't have access to the name
+		}
 	}
 
 }

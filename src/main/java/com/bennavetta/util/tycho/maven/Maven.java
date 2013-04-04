@@ -1,6 +1,7 @@
 package com.bennavetta.util.tycho.maven;
 
 import java.io.File;
+import java.util.Collections;
 
 import org.apache.maven.model.Model;
 import org.apache.maven.model.building.DefaultModelBuildingRequest;
@@ -17,11 +18,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sonatype.aether.RepositorySystem;
 import org.sonatype.aether.RepositorySystemSession;
+import org.sonatype.aether.artifact.Artifact;
 import org.sonatype.aether.connector.async.AsyncRepositoryConnectorFactory;
 import org.sonatype.aether.connector.file.FileRepositoryConnectorFactory;
+import org.sonatype.aether.metadata.Metadata;
 import org.sonatype.aether.repository.LocalRepository;
 import org.sonatype.aether.repository.RemoteRepository;
+import org.sonatype.aether.repository.RepositoryPolicy;
+import org.sonatype.aether.resolution.MetadataRequest;
+import org.sonatype.aether.resolution.MetadataResult;
 import org.sonatype.aether.spi.connector.RepositoryConnectorFactory;
+import org.sonatype.aether.util.metadata.DefaultMetadata;
 
 /**
  * Utility methods to initialize Aether components.
@@ -66,6 +73,7 @@ public class Maven
 		ModelBuilder builder = mavenContainer.lookup(ModelBuilder.class);
 		ModelBuildingRequest req = new DefaultModelBuildingRequest();
 		req.setProcessPlugins(false);
+		req.setModelResolver(new RepoModelResolver());
 		req.setPomFile(pom);
 		return builder.build(req).getEffectiveModel();
 	}
@@ -78,11 +86,34 @@ public class Maven
 		session.setTransferListener(new ConsoleTransferListener());
 		session.setRepositoryListener(new ConsoleRepositoryListener());
 		
+		session.setChecksumPolicy(RepositoryPolicy.CHECKSUM_POLICY_WARN);
+		
 		return session;
 	}
 	
 	public static RemoteRepository central()
 	{
 		return new RemoteRepository("central", "default", "http://repo.maven.apache.org/maven2/");
+	}
+
+	public static Model getModel(Artifact artifact) throws ModelBuildingException, ComponentLookupException
+	{
+		RepositorySystem system = repositorySystem();
+		RepositorySystemSession session = repositorySystemSession(system);
+		Metadata metadata = getMetadata(system, session, artifact);
+		return createModel(metadata.getFile());
+	}
+	
+	public static Metadata getMetadata(RepositorySystem system, RepositorySystemSession session, Artifact artifact)
+	{
+		Metadata metadata = new DefaultMetadata(
+				artifact.getGroupId(),
+				artifact.getArtifactId(),
+				artifact.getVersion(),
+				artifact.getArtifactId() + "-" + artifact.getBaseVersion() + ".pom",
+				Metadata.Nature.RELEASE_OR_SNAPSHOT);
+		MetadataRequest request = new MetadataRequest(metadata, central(), null);
+		MetadataResult result = system.resolveMetadata(session, Collections.singleton(request)).get(0);
+		return result.getMetadata();
 	}
 }
