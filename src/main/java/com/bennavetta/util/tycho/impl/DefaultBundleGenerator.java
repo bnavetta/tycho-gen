@@ -116,7 +116,7 @@ public class DefaultBundleGenerator implements BundleGenerator
 		else
 		{
 			String gidEnd = Iterables.getLast(Splitter.on('.').split(artifact.getGroupId()));
-			if(artifact.getArtifactId().startsWith(gidEnd))
+			if(Iterables.getFirst(Splitter.on('.').split(artifact.getArtifactId()), null).equals(gidEnd))
 			{
 				// org.apache.maven:maven-core -> org.apache.maven.core
 				return artifact.getGroupId() + "." + PUNCTUATION.trimFrom(artifact.getArtifactId().substring(gidEnd.length()));
