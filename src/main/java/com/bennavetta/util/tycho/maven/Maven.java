@@ -98,8 +98,8 @@ public class Maven
 		MavenRepositorySystemSession session = new MavenRepositorySystemSession();
 		session.setLocalRepositoryManager(system.newLocalRepositoryManager(LOCAL_REPO));
 		
-		session.setTransferListener(new ConsoleTransferListener());
-		session.setRepositoryListener(new ConsoleRepositoryListener());
+		session.setTransferListener(new LoggingTransferListener());
+		session.setRepositoryListener(new LoggingRepositoryListener());
 		
 		session.setChecksumPolicy(RepositoryPolicy.CHECKSUM_POLICY_WARN);
 		
