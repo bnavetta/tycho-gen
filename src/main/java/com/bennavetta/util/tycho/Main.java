@@ -3,13 +3,10 @@ package com.bennavetta.util.tycho;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.net.JarURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.jar.Manifest;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import org.apache.logging.log4j.core.config.plugins.PluginManager;
 import org.apache.maven.model.Model;
@@ -40,37 +37,8 @@ public class Main
 	@Option(name="-v", aliases="--version", required=false, usage="Display version information")
 	private boolean version;
 	
-	@Argument(required=true, metaVar="config-file", usage="The XML configuration describing the dependencies to wrap", multiValued=false)
+	@Argument(metaVar="config-file", usage="The XML configuration describing the dependencies to wrap", multiValued=false)
 	private File configFile;
-	
-	private Manifest manifest; // store it so we don't have to parse it each time
-	
-	private Manifest getManifest() throws IOException
-	{
-		if(manifest == null)
-		{
-			//try(InputStream in = getClass().getResourceAsStream("/META-INF/MANIFEST.MF"))
-			//{
-			//	manifest = new Manifest();
-			//	manifest.read(in);
-			//}
-			URL resource = Main.class.getResource(Main.class.getSimpleName() + ".class");
-			URLConnection conn = resource.openConnection();
-			if(conn instanceof JarURLConnection)
-			{
-				manifest = ((JarURLConnection) conn).getManifest();
-			}
-			else
-			{
-				try(InputStream in = getClass().getResourceAsStream("/META-INF/MANIFEST.MF"))
-				{
-					manifest = new Manifest();
-					manifest.read(in);
-				}
-			}
-		}
-		return manifest;
-	}
 	
 	private int run(String[] args) throws Exception
 	{
@@ -86,7 +54,22 @@ public class Main
 			
 			if(version)
 			{
-				System.out.println("Tycho-Gen version " + getManifest().getMainAttributes().getValue("Implementation-Version"));
+				String version = Config.get(Config.VERSION);
+				String aetherVersion = Config.get(Config.AETHER_VERSION);
+				String mavenVersion = Config.get(Config.MAVEN_VERSION);
+				String gradleVersion = Config.get(Config.GRADLE_VERSION);
+				Date built = new Date(Long.parseLong(Config.get(Config.BUILD_TIMESTAMP)));
+				
+				System.out.println("Tycho Generator version: " + version);
+				System.out.println("Sonatype Aether version: " + aetherVersion);
+				System.out.println("Apache Maven version: " + mavenVersion);
+				String builtDate = new SimpleDateFormat("dd MMMM yyyy").format(built);
+				String builtTime = new SimpleDateFormat("hh:mm:ss.SSS aa").format(built);
+				System.out.println("Built by Gradle " + gradleVersion + " on " + builtDate + " at " + builtTime);
+			}
+			else if(configFile == null)
+			{
+				throw new CmdLineException(parser, "No config file given");
 			}
 			else
 			{
@@ -104,7 +87,7 @@ public class Main
 		}
 		catch(CmdLineException e)
 		{	
-			String invocation = getManifest().getMainAttributes().getValue("Dist-Jar");
+			String invocation = "tycho-gen-" + Config.get(Config.VERSION) + "-dist.jar";
 			// tell the user what was wrong with the arguments
 			System.err.println(e.getMessage());
 			
