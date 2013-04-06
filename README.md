@@ -3,7 +3,7 @@ tycho-gen
 
 Currently, [Tycho](http://eclipse.org/tycho/) is one of the better ways of building OSGi applications with Maven (and the only way of building Eclipse plugins and RCP apps that I know of). However, Tycho uses Eclipse P2 repositories, which makes using regular Maven dependencies a pain. The suggested workaround was to use the [maven-bundle-plugin](http://felix.apache.org/site/apache-felix-maven-bundle-plugin-bnd.html) in a separate build to generate OSGi bundles and install them to the local repository. tycho-gen uses Tycho to wrap Maven dependencies so they can be built along with your code.
 
-tycho-gen essentially does what the PDE Plug-in from Existing JAR Archives wizard does, but from the command line and with Tycho/Maven. It uses [Sonatype Aether](http://www.sonatype.org/aether) to resolve dependencies and [BND](http://www.aqute.biz/Bnd/Bnd) to generate the manifest file.
+tycho-gen essentially does what the PDE "Plug-in from Existing JAR Archives" wizard does, but from the command line and with Tycho/Maven. It uses [Sonatype Aether](http://www.sonatype.org/aether) to resolve dependencies and [BND](http://www.aqute.biz/Bnd/Bnd) to generate the manifest file.
 
 Usage
 ========
