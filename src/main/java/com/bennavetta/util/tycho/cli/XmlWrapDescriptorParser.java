@@ -16,15 +16,20 @@ public class XmlWrapDescriptorParser
 	public WrapRequest createRequest(Document doc) throws Exception
 	{
 		DefaultWrapRequest req = new DefaultWrapRequest();
-		for(Element repoDescriptor : doc.getRootElement().getChild("repository").getChildren("repositories"))
+		
+		if(doc.getRootElement().getChild("repositories") != null)
 		{
-			Repository repo = new Repository();
-			repo.setId(repoDescriptor.getAttributeValue("id"));
-			repo.setLayout(repoDescriptor.getAttributeValue("layout", "default"));
-			repo.setName(repoDescriptor.getAttributeValue("name"));
-			repo.setUrl(repoDescriptor.getAttributeValue("url"));
-			req.addRepository(repo);
+			for(Element repoDescriptor : doc.getRootElement().getChild("repositories").getChildren("repository"))
+			{
+				Repository repo = new Repository();
+				repo.setId(repoDescriptor.getAttributeValue("id"));
+				repo.setLayout(repoDescriptor.getAttributeValue("layout", "default"));
+				repo.setName(repoDescriptor.getAttributeValue("name"));
+				repo.setUrl(repoDescriptor.getAttributeValue("url"));
+				req.addRepository(repo);
+			}
 		}
+		
 		Model parent = Maven.createModel(new File(doc.getRootElement().getChildText("parent")));
 		req.setParent(parent);
 		for(Element artifactDescriptor : doc.getRootElement().getChild("artifacts").getChildren("artifact"))

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<repositories>
+		<repository id="jboss-releases" name="JBoss Maven Releases" url="https://repository.jboss.org/nexus/content/repositories/releases/"/>
+	</repositories>
+	<parent>/Users/ben/workspaces/gae-website/appsite-client/thirdparty/pom.xml</parent>
+	<artifacts>
+		<artifact groupId="org.apache.logging.log4j" artifactId="log4j-api" version="2.0-beta4"/>
+	</artifacts>
+</configuration>
