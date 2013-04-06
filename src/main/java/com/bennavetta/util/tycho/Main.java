@@ -1,79 +1,128 @@
 package com.bennavetta.util.tycho;
 
-import org.apache.commons.cli.BasicParser;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.OptionBuilder;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-import org.apache.logging.log4j.Level;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.JarURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.jar.Manifest;
+
 import org.apache.logging.log4j.core.config.plugins.PluginManager;
+import org.jdom2.Document;
+import org.jdom2.input.SAXBuilder;
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.ExampleMode;
+import org.kohsuke.args4j.Option;
+
+import com.bennavetta.util.tycho.cli.XmlWrapDescriptorParser;
+import com.bennavetta.util.tycho.impl.DefaultWrapperGenerator;
 
 public class Main
-{
+{	
 	static {
 		PluginManager.addPackage("com.bennavetta.util.tycho.cli.logging"); // a bit of a hack, but none of the other methods seen to be working
 	}
 	
 	public static final String LOGGING_PROP = "tycho.gen.logging.level";
 	
-	public static void main(String[] args)
+	@Option(name="--log", aliases="-l", required=false, metaVar="<level>", usage="Log level to use. One of: off, fatal, error, warn, info, debug, trace, all (case-insensitive)")
+	private String logLevel;
+	
+	@Option(name="-v", aliases="--version", required=false, usage="Display version information")
+	private boolean version;
+	
+	@Argument(required=true, metaVar="config-file", usage="The XML configuration describing the dependencies to wrap", multiValued=false)
+	private File configFile;
+	
+	private Manifest manifest; // store it so we don't have to parse it each time
+	
+	private Manifest getManifest() throws IOException
 	{
-		Options options = createOptions();
-		CommandLineParser parser = new BasicParser();
-		try
+		if(manifest == null)
 		{
-			CommandLine cmd = parser.parse(options, args);
-			
-			// Configure logging
-			if(cmd.hasOption("quiet"))
+			//try(InputStream in = getClass().getResourceAsStream("/META-INF/MANIFEST.MF"))
+			//{
+			//	manifest = new Manifest();
+			//	manifest.read(in);
+			//}
+			URL resource = Main.class.getResource(Main.class.getSimpleName() + ".class");
+			URLConnection conn = resource.openConnection();
+			if(conn instanceof JarURLConnection)
 			{
-				System.setProperty(LOGGING_PROP, Level.WARN.toString());
-			}
-			else if(cmd.hasOption("verbose"))
-			{
-				System.setProperty(LOGGING_PROP, Level.DEBUG.toString());
+				manifest = ((JarURLConnection) conn).getManifest();
 			}
 			else
 			{
-				System.setProperty(LOGGING_PROP, Level.INFO.toString());
+				try(InputStream in = getClass().getResourceAsStream("/META-INF/MANIFEST.MF"))
+				{
+					manifest = new Manifest();
+					manifest.read(in);
+				}
 			}
-			
-			if(cmd.hasOption("version"))
-			{
-				System.out.println("Tycho Generator version: 1.0");
-				System.out.println("Java version: " + System.getProperty("java.version"));
-				System.exit(0);
-			}
-			
 		}
-		catch (ParseException e)
+		return manifest;
+	}
+	
+	private int run(String[] args) throws Exception
+	{
+		CmdLineParser parser = new CmdLineParser(this);
+		try
 		{
-			printHelp(options);
+			parser.parseArgument(args);
+			
+			if(logLevel != null)
+			{
+				System.setProperty(LOGGING_PROP, logLevel.toUpperCase());
+			}
+			
+			if(version)
+			{
+				System.out.println("Tycho-Gen version " + getManifest().getMainAttributes().getValue("Implementation-Version"));
+			}
+			else
+			{
+				SAXBuilder builder = new SAXBuilder();
+				Document doc = builder.build(configFile);
+				WrapRequest request = new XmlWrapDescriptorParser().createRequest(doc);
+				
+				WrapperGenerator generator = new DefaultWrapperGenerator();
+				generator.generate(request);
+			}
+			
+			return 0;
 		}
-		
+		catch(CmdLineException e)
+		{	
+			String invocation = getManifest().getMainAttributes().getValue("Dist-Jar");
+			// tell the user what was wrong with the arguments
+			System.err.println(e.getMessage());
+			
+			// show usage information
+			System.err.println("Usage: java -jar " + invocation + " [options] config-file");
+			parser.printUsage(System.err);
+			
+			// show an example
+			System.err.println();
+			System.err.println("    Example: java -jar " + invocation + parser.printExample(ExampleMode.REQUIRED) + " myconfig.xml");
+			return 1;
+		}
 	}
-
-	private static void printHelp(Options options)
+	
+	public static void main(String[] args)
 	{
-		HelpFormatter formatter = new HelpFormatter();
-		formatter.printHelp(Main.class.getName(), options);
-	}
-
-	private static Options createOptions()
-	{
-		Options opts = new Options();
-		opts.addOption("f", "file", true, "wrapper configuration file");
-		opts.addOption(OptionBuilder.withLongOpt("file")
-			.withDescription("wrapper configuration file")
-			.hasArg()
-			.withArgName("file")
-			.isRequired()
-			.create('f'));
-		opts.addOption("v", "version", false, "print version information");
-		opts.addOption("V", "verbose", false, "enable verbose output");
-		opts.addOption("q", "quiet", false, "limit output");
-		return opts;
+		try
+		{
+			int rc = new Main().run(args);
+			System.exit(rc);
+		}
+		catch(Exception e)
+		{
+			//System.err.println("Error: " + e.getLocalizedMessage());
+			e.printStackTrace();
+			System.exit(1);
+		}
 	}
 }
