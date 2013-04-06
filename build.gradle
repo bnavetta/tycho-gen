@@ -1,6 +1,7 @@
 apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'gradle-one-jar'
+apply plugin: 'license'
 
 sourceCompatibility = 1.7
 version = '1.0'
@@ -20,6 +21,7 @@ buildscript {
 	}
 	dependencies {
 		classpath 'com.github.rholder:gradle-one-jar:1.0.3'
+		classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.6.0'
 	}
 }
 
@@ -85,6 +87,16 @@ uploadArchives {
            dirs 'repos'
        }
     }
+}
+
+license {
+	header rootProject.file("header.txt")
+	strictCheck true
+	ext {
+		year = Calendar.getInstance().get(Calendar.YEAR)
+		name = "Ben Navetta"
+		email = "ben.navetta@gmail.com"
+	}
 }
 
 task generateBuildData  {
