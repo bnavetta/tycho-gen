@@ -19,7 +19,10 @@ repositories {
 
 configurations {
 	compile.exclude module: "google-collections" // replaced by Guava
+	compile.exclude groupId: "log4j", module: "log4j" // don't use log4j 1.x
+	compile.exclude module: "commons-logging-api" // seems to duplicate commons-logging
 	log4j
+	tattletale
 }
 
 dependencies {
@@ -45,10 +48,8 @@ dependencies {
 	// Log4j 2
 	compile "org.apache.logging.log4j:log4j-core:$log4jVersion"
 	compile "org.apache.logging.log4j:log4j-api:$log4jVersion"
-	compile "org.apache.logging.log4j:log4j-jcl:2.0-alpha2"
-	compile "org.apache.logging.log4j:slf4j-impl:2.0-alpha2"
-	
-	log4j "org.apache.logging.log4j:log4j-core:$log4jVersion"
+	compile "org.apache.logging.log4j.adapters:log4j-jcl:$log4jVersion"
+	compile "org.apache.logging.log4j.adapters:log4j-slf4j-impl:$log4jVersion"
 	
 	compile "org.jdom:jdom2:2.0.4"
 	compile "args4j:args4j:2.0.23"
@@ -62,6 +63,10 @@ dependencies {
 	compile "org.codehaus.plexus:plexus-container-default:1.5.5"
 	
     testCompile group: 'junit', name: 'junit', version: '4.+'
+	
+	// build tools
+	log4j "org.apache.logging.log4j:log4j-core:$log4jVersion"
+	tattletale "org.jboss.tattletale:tattletale:1.2.0.Beta2"
 }
 
 uploadArchives {
@@ -88,6 +93,35 @@ task distJar(type:Jar, dependsOn:classes) {
 	
 	from sourceSets.main.output.resourcesDir
 	from sourceSets.main.output.classesDir
+}
+
+task createTattletaleProperties {
+	ext.props = [reports:"*", enableDot:"true"]
+	ext.destFile = new File(buildDir, "tattletale.properties")
+	inputs.properties props
+	outputs.file destFile
+	doLast {
+		def properties = new Properties()
+		properties.putAll(props)
+		destFile.withOutputStream { os ->
+			properties.store(os, null)
+		}
+	}
+}
+
+task tattletale(type: JavaExec, dependsOn: [createTattletaleProperties, jar]) {
+	ext.outputDir = new File(buildDir, "reports/tattletale")
+	outputs.dir outputDir
+	inputs.files configurations.runtime.files
+	inputs.file jar.archivePath
+	doFirst {
+		outputDir.mkdirs()
+	}
+	main = "org.jboss.tattletale.Main"
+	classpath = configurations.tattletale
+	systemProperties "jboss-tattletale.properties": createTattletaleProperties.destFile
+	args([configurations.runtime.files, jar.archivePath].flatten().join("#"))
+	args outputDir
 }
 
 task preloadPlugins(type: JavaExec) {
