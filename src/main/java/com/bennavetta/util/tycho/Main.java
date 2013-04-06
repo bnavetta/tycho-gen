@@ -1,14 +1,19 @@
 package com.bennavetta.util.tycho;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.jar.Manifest;
 
 import org.apache.logging.log4j.core.config.plugins.PluginManager;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Writer;
 import org.jdom2.Document;
 import org.jdom2.input.SAXBuilder;
 import org.kohsuke.args4j.Argument;
@@ -19,6 +24,7 @@ import org.kohsuke.args4j.Option;
 
 import com.bennavetta.util.tycho.cli.XmlWrapDescriptorParser;
 import com.bennavetta.util.tycho.impl.DefaultWrapperGenerator;
+import com.google.common.base.Charsets;
 
 public class Main
 {	
@@ -90,6 +96,8 @@ public class Main
 				
 				WrapperGenerator generator = new DefaultWrapperGenerator();
 				generator.generate(request);
+				
+				writePom(request.getParent());
 			}
 			
 			return 0;
@@ -111,6 +119,22 @@ public class Main
 		}
 	}
 	
+	private void writePom(Model pom) throws IOException
+	{
+		MavenXpp3Writer writer = new MavenXpp3Writer();
+		Writer out = null;
+		try
+		{
+			out = new OutputStreamWriter(new FileOutputStream(pom.getPomFile()), Charsets.UTF_8);
+			writer.write(out, pom);
+		}
+		finally
+		{
+			if(out != null)
+				out.close();
+		}
+	}
+
 	public static void main(String[] args)
 	{
 		try
