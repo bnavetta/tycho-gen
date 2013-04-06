@@ -31,10 +31,13 @@ import org.sonatype.aether.artifact.Artifact;
 import com.bennavetta.util.tycho.BundleGenerator;
 import com.bennavetta.util.tycho.maven.Maven;
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.google.common.net.InternetDomainName;
 import com.google.common.primitives.Ints;
 
 /**
@@ -48,9 +51,23 @@ public class DefaultBundleGenerator implements BundleGenerator
 		@Override
 		public int compare(String a, String b)
 		{
+			// favor something like org.junit over junit.assert
+			boolean aHasTld = hasTld(a);
+			boolean bHasTld = hasTld(b);
+			if(aHasTld && ! bHasTld)
+				return 1;
+			if(!aHasTld && bHasTld)
+				return -1;
+			
 			return Ints.compare(
 				Iterables.size(Splitter.on('/').split(a)),
 				Iterables.size(Splitter.on('/').split(b)));
+		}
+		
+		private boolean hasTld(String path)
+		{
+			String domain = Joiner.on('.').join(Lists.reverse(Lists.newArrayList(Splitter.on('/').split(path))));
+			return InternetDomainName.isValid(domain) && InternetDomainName.from(domain).hasPublicSuffix();
 		}
 	};
 	
