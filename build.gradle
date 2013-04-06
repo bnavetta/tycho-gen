@@ -8,6 +8,9 @@ ext {
 	aetherVersion = "1.13.1"
 	wagonVersion = "2.4"
 	mavenVersion = "3.0.5"
+	log4jVersion = "2.0-beta4"
+	
+	mainClassName = "com.bennavetta.util.tycho.Main"
 }
 
 repositories {
@@ -16,6 +19,7 @@ repositories {
 
 configurations {
 	compile.exclude module: "google-collections" // replaced by Guava
+	log4j
 }
 
 dependencies {
@@ -38,6 +42,17 @@ dependencies {
 		compile "org.sonatype.aether:$it:${aetherVersion}"
 	}
 	
+	// Log4j 2
+	compile "org.apache.logging.log4j:log4j-core:$log4jVersion"
+	compile "org.apache.logging.log4j:log4j-api:$log4jVersion"
+	compile "org.apache.logging.log4j:log4j-jcl:2.0-alpha2"
+	compile "org.apache.logging.log4j:slf4j-impl:2.0-alpha2"
+	
+	log4j "org.apache.logging.log4j:log4j-core:$log4jVersion"
+	
+	compile "org.jdom:jdom2:2.0.4"
+	compile "commons-cli:commons-cli:1.2"
+	
 	// Maven Aether implementation
 	compile"org.apache.maven:maven-aether-provider:$mavenVersion"
 	
@@ -55,6 +70,37 @@ uploadArchives {
            dirs 'repos'
        }
     }
+}
+
+task distJar(type:Jar, dependsOn:classes) {
+	archiveName = "${baseName}-${version}.dist.jar"
+	manifest {
+		attributes "Main-Class": mainClassName,
+			'Implementation-Version': version
+	}
+	
+	from(configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }) {
+		exclude "META-INF/*.SF"
+		exclude "META-INF/*.DSA"
+		exclude "META-INF/*.RSA"
+	}
+	
+	from sourceSets.main.output.resourcesDir
+	from sourceSets.main.output.classesDir
+}
+
+task preloadPlugins(type: JavaExec) {
+	main = "org.apache.logging.log4j.core.config.plugins.PluginManager"
+	classpath = configurations.log4j
+	args sourceSets.main.output.resourcesDir
+	args "com.bennavetta.util.tycho.cli.logging"
+}
+preloadPlugins.inputs.dir sourceSets.main.java.srcDirs
+preloadPlugins.outputs.dir sourceSets.main.output.resourcesDir
+processResources.dependsOn preloadPlugins
+
+artifacts {
+	archives distJar
 }
 
 task wrapper(type: Wrapper) {
