@@ -163,15 +163,17 @@ task tattletale(type: JavaExec, dependsOn: [createTattletaleProperties, jar]) {
 	args outputDir
 }
 
+/*
 task preloadPlugins(type: JavaExec) {
 	main = "org.apache.logging.log4j.core.config.plugins.PluginManager"
 	classpath = configurations.log4j
 	args sourceSets.main.output.resourcesDir
-	args "com.bennavetta.util.tycho.cli.logging"
+	args "com.bennavetta.util.tycho.logging"
 }
 preloadPlugins.inputs.dir sourceSets.main.java.srcDirs
 preloadPlugins.outputs.dir sourceSets.main.output.resourcesDir
 processResources.dependsOn preloadPlugins
+*/
 
 artifacts {
 	archives distJar

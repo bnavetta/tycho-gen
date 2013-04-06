@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.bennavetta.util.tycho.cli;
+package com.bennavetta.util.tycho;
 
 import java.io.File;
 
@@ -22,7 +22,6 @@ import org.apache.maven.model.Repository;
 import org.jdom2.Document;
 import org.jdom2.Element;
 
-import com.bennavetta.util.tycho.WrapRequest;
 import com.bennavetta.util.tycho.impl.DefaultWrapRequest;
 import com.bennavetta.util.tycho.maven.Maven;
 

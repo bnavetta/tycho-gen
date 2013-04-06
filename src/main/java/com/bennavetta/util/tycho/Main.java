@@ -23,7 +23,8 @@ import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import org.apache.logging.log4j.core.config.plugins.PluginManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.ThreadContext;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.io.xpp3.MavenXpp3Writer;
 import org.jdom2.Document;
@@ -34,16 +35,11 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.ExampleMode;
 import org.kohsuke.args4j.Option;
 
-import com.bennavetta.util.tycho.cli.XmlWrapDescriptorParser;
 import com.bennavetta.util.tycho.impl.DefaultWrapperGenerator;
 import com.google.common.base.Charsets;
 
 public class Main
 {	
-	static {
-		PluginManager.addPackage("com.bennavetta.util.tycho.cli.logging"); // a bit of a hack, but none of the other methods seen to be working
-	}
-	
 	public static final String LOGGING_PROP = "tycho.gen.logging.level";
 	
 	@Option(name="--log", aliases="-l", required=false, metaVar="<level>", usage="Log level to use. One of: off, fatal, error, warn, info, debug, trace, all (case-insensitive)")
@@ -64,7 +60,7 @@ public class Main
 			
 			if(logLevel != null)
 			{
-				System.setProperty(LOGGING_PROP, logLevel.toUpperCase());
+				ThreadContext.put(LOGGING_PROP, logLevel.toUpperCase());
 			}
 			
 			if(version)
@@ -142,8 +138,7 @@ public class Main
 		}
 		catch(Exception e)
 		{
-			//System.err.println("Error: " + e.getLocalizedMessage());
-			e.printStackTrace();
+			System.err.println("Error: " + e.getMessage());
 			System.exit(1);
 		}
 	}
