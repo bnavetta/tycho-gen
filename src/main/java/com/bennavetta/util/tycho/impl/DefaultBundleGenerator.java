@@ -132,7 +132,7 @@ public class DefaultBundleGenerator implements BundleGenerator
 	@Override
 	public String getVersion(Artifact artifact)
 	{
-		return artifact.getVersion().replace('-', '.');
+		return artifact.getVersion().replace('-', '.') + ".qualifier";
 	}
 
 	@Override
