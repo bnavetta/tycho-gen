@@ -32,6 +32,7 @@ public class DefaultWrapRequest implements WrapRequest
 	private Model parent;
 	private Set<Artifact> artifacts;
 	private List<Repository> repositories;
+	private boolean useOptionalImports;
 	
 	public Model getParent()
 	{
@@ -81,5 +82,15 @@ public class DefaultWrapRequest implements WrapRequest
 		if(artifacts == null)
 			artifacts = new HashSet<>();
 		artifacts.add(new DefaultArtifact(groupId + ":" + artifactId + ":" + version));
+	}
+	@Override
+	public boolean useOptionalImports()
+	{
+		return useOptionalImports;
+	}
+	
+	public void setOptionalImports(boolean useOptionalImports)
+	{
+		this.useOptionalImports = useOptionalImports;
 	}
 }

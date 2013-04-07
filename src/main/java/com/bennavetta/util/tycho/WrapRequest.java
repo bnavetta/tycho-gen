@@ -39,4 +39,9 @@ public interface WrapRequest
 	 * @return a list of configured repositories, or {@code null}
 	 */
 	public Iterable<Repository> getRepositories();
+	
+	/**
+	 * If {@code} true, all bundle imports will be marked as optional.
+	 */
+	public boolean useOptionalImports();
 }

@@ -195,7 +195,10 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 				analyzer.setProperty("Bundle-Name", bundleName);
 				
 				analyzer.setProperty("Export-Package", "*");
-				analyzer.setProperty("Import-Package", "*");
+				if(request.useOptionalImports())
+					analyzer.setProperty("Import-Package", "*;resolution:=optional");
+				else
+					analyzer.setProperty("Import-Package", "*");
 				
 				Manifest manifest = analyzer.calcManifest();
 				log.debug("Manifest: {}", manifest);

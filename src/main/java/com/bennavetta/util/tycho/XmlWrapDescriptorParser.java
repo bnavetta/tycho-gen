@@ -44,6 +44,11 @@ public class XmlWrapDescriptorParser
 			}
 		}
 		
+		if(Boolean.parseBoolean(doc.getRootElement().getChildText("optionalImports")))
+		{
+			req.setOptionalImports(true);
+		}
+		
 		Model parent = Maven.createModel(new File(doc.getRootElement().getChildText("parent")));
 		req.setParent(parent);
 		for(Element artifactDescriptor : doc.getRootElement().getChild("artifacts").getChildren("artifact"))
