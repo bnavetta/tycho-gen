@@ -15,6 +15,8 @@
  */
 package com.bennavetta.util.tycho;
 
+import java.io.File;
+
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Repository;
 import org.sonatype.aether.artifact.Artifact;
@@ -41,7 +43,8 @@ public interface WrapRequest
 	public Iterable<Repository> getRepositories();
 	
 	/**
-	 * If {@code} true, all bundle imports will be marked as optional.
+	 * If the generated manifests need to be customized, 
+	 * @return
 	 */
-	public boolean useOptionalImports();
+	public File getBndDirectory();
 }

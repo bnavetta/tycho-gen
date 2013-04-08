@@ -17,6 +17,8 @@ package com.bennavetta.util.tycho;
 
 import java.io.File;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Repository;
 import org.jdom2.Document;
@@ -27,8 +29,12 @@ import com.bennavetta.util.tycho.maven.Maven;
 
 public class XmlWrapDescriptorParser
 {
+	private Logger log = LogManager.getLogger(getClass());
+	
 	public WrapRequest createRequest(Document doc) throws Exception
 	{
+		log.info("Parsing wrapper configuration {} from {}", doc, doc.getBaseURI());
+		
 		DefaultWrapRequest req = new DefaultWrapRequest();
 		
 		if(doc.getRootElement().getChild("repositories") != null)
@@ -40,23 +46,28 @@ public class XmlWrapDescriptorParser
 				repo.setLayout(repoDescriptor.getAttributeValue("layout", "default"));
 				repo.setName(repoDescriptor.getAttributeValue("name"));
 				repo.setUrl(repoDescriptor.getAttributeValue("url"));
+				log.debug("Adding repository {}", repo);
 				req.addRepository(repo);
 			}
 		}
 		
-		if(Boolean.parseBoolean(doc.getRootElement().getChildText("optionalImports")))
+		String bndDir = doc.getRootElement().getChildText("bndDir");
+		if(bndDir != null)
 		{
-			req.setOptionalImports(true);
+			req.setBndDirectory(new File(bndDir));
+			log.debug("Bnd directory: {}", bndDir);
 		}
 		
 		Model parent = Maven.createModel(new File(doc.getRootElement().getChildText("parent")));
 		req.setParent(parent);
+		log.debug("Parent: {}", parent);
 		for(Element artifactDescriptor : doc.getRootElement().getChild("artifacts").getChildren("artifact"))
 		{
-			req.addArtifact(
-					artifactDescriptor.getAttributeValue("groupId"),
-					artifactDescriptor.getAttributeValue("artifactId"),
-					artifactDescriptor.getAttributeValue("version"));
+			String groupId = artifactDescriptor.getAttributeValue("groupId");
+			String artifactId = artifactDescriptor.getAttributeValue("artifactId");
+			String version = artifactDescriptor.getAttributeValue("version");
+			log.debug("Adding artifact {}:{}:{}", groupId, artifactId, version);
+			req.addArtifact(groupId, artifactId, version);
 		}
 		return req;
 	}

@@ -21,13 +21,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
@@ -76,7 +77,7 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 	
 	@Override
 	public void generate(WrapRequest request) throws WrapException
-	{
+	{	
 		RepositorySystemSession session = Maven.repositorySystemSession(repoSystem);
 		
 		CollectRequest collect = new CollectRequest();
@@ -126,10 +127,11 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 	private void createWrapper(WrapRequest request, RepositorySystemSession session, DependencyNode node) throws WrapException
 	{
 		Artifact artifact = node.getDependency().getArtifact();
-		List<String> deps = new ArrayList<>(node.getChildren().size());
+		Map<String, Artifact> deps = new HashMap<>(node.getChildren().size());
 		for(DependencyNode dependency : node.getChildren())
 		{
-			deps.add(metadata.getSymbolicName(dependency.getDependency().getArtifact()));
+			//deps.add(metadata.getSymbolicName(dependency.getDependency().getArtifact()));
+			deps.put(metadata.getSymbolicName(dependency.getDependency().getArtifact()), dependency.getDependency().getArtifact());
 		}
 		
 		if(artifact.getFile() == null)
@@ -145,6 +147,7 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 			String bundleName = metadata.getBundleName(artifact);
 			if(!request.getParent().getModules().contains(symbolicName)) // check first in case the wrapper is being regenerated/updated
 				request.getParent().addModule(symbolicName);
+			//TODO: instead of editing the model, build a regular XML DOM to keep it from having everything added
 			
 			Model pom = new Model();
 			pom.setParent(asParent(request.getParent()));
@@ -154,13 +157,16 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 			pom.setName(bundleName);
 			pom.addProperty("project.build.sourceEncoding", "UTF-8");
 			
+			//pom.setVersion(artifact.getBaseVersion());
+			
 			// Add the wrapper modules of the project's dependencies so Tycho makes them available during compilation
-			for(String module : deps)
+			for(Map.Entry<String, Artifact> dependency : deps.entrySet())
 			{
 				org.apache.maven.model.Dependency modelDep = new org.apache.maven.model.Dependency();
 				modelDep.setGroupId(request.getParent().getGroupId());
-				modelDep.setArtifactId(module);
-				modelDep.setVersion(request.getParent().getVersion());
+				modelDep.setArtifactId(dependency.getKey());
+				//modelDep.setVersion(request.getParent().getVersion());
+				modelDep.setVersion(dependency.getValue().getBaseVersion());
 				pom.addDependency(modelDep);
 			}
 			log.debug("POM: {}", pom);
@@ -179,6 +185,7 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 			if(!projectDir.mkdir()) // parent should exist
 				throw new WrapException("Unable to create project directory", request);
 			
+			pom.getParent().setRelativePath(null); // uses absolute paths
 			// Write out the wrapper pom
 			try(OutputStream pomOut = new FileOutputStream(pom.getPomFile()))
 			{
@@ -191,17 +198,23 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 			{
 				analyzer.setJar(artifact.getFile());
 				analyzer.setProperty("Bundle-SymbolicName", symbolicName);
-				analyzer.setProperty("Bundle-Version", metadata.getVersion(artifact));
+				//analyzer.setProperty("Bundle-Version", metadata.getVersion(artifact));
+				//analyzer.setProperty("Bundle-Version", request.getParent().getVersion());
+				analyzer.setProperty("Bundle-Version", metadata.getVersion(request.getParent().getVersion()));
 				analyzer.setProperty("Bundle-Name", bundleName);
 				
-				analyzer.setProperty("Export-Package", "*");
-				if(request.useOptionalImports())
-					analyzer.setProperty("Import-Package", "*;resolution:=optional");
-				else
-					analyzer.setProperty("Import-Package", "*");
+				analyzer.setProperty("Export-Package", "*;version=" + metadata.getVersion(artifact.getBaseVersion()));
+				analyzer.setProperty("Import-Package", "*");
+				
+				if(request.getBndDirectory() != null)
+				{
+					addBndProperties(request.getBndDirectory(), symbolicName, analyzer);
+				}
+				
+				log.debug("Bnd configuration: {}", analyzer.getFlattenedProperties());
 				
 				Manifest manifest = analyzer.calcManifest();
-				log.debug("Manifest: {}", manifest);
+				log.debug("Manifest: {}", manifestToString(manifest));
 				File metaInf = new File(projectDir, "META-INF");
 				if(!metaInf.exists() && !metaInf.mkdir())
 					throw new WrapException("Unable to create META-INF directory", request);
@@ -256,6 +269,49 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 		catch(Exception e)
 		{
 			throw new WrapException("Error generating wrapper", e, request);
+		}
+	}
+	
+	private String manifestToString(Manifest manifest)
+	{
+		StringBuilder builder = new StringBuilder();
+		Attributes main = manifest.getMainAttributes();
+		for(Map.Entry<Object, Object> entry : main.entrySet())
+		{
+			builder.append(entry.getKey())
+			.append(": ")
+			.append(entry.getValue())
+			.append('\n');
+		}
+		for(Map.Entry<String, Attributes> attrs : manifest.getEntries().entrySet())
+		{
+			if(!attrs.getValue().equals(main))
+			{
+				builder.append("Name: ").append(attrs.getKey()).append('\n');
+				for(Map.Entry<Object, Object> entry : attrs.getValue().entrySet())
+				{
+					builder.append(entry.getKey())
+						.append(": ")
+						.append(entry.getValue())
+						.append('\n');
+				}
+			}
+		}
+		
+		return builder.toString();
+	}
+
+	private void addBndProperties(File bndDir, String symbolicName, Analyzer analyzer) throws Exception
+	{
+		File bndFile = new File(bndDir, symbolicName);
+		if(!bndFile.isFile())
+			bndFile = new File(bndDir, symbolicName + ".bnd");
+		if(!bndFile.isFile())
+			bndFile = new File(bndDir, symbolicName + "properties");
+		
+		if(bndFile.isFile())
+		{
+			analyzer.addProperties(bndFile);
 		}
 	}
 	

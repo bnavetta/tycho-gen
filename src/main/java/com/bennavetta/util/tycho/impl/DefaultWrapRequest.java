@@ -15,6 +15,7 @@
  */
 package com.bennavetta.util.tycho.impl;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,7 +33,7 @@ public class DefaultWrapRequest implements WrapRequest
 	private Model parent;
 	private Set<Artifact> artifacts;
 	private List<Repository> repositories;
-	private boolean useOptionalImports;
+	private File bndDirectory;
 	
 	public Model getParent()
 	{
@@ -83,14 +84,13 @@ public class DefaultWrapRequest implements WrapRequest
 			artifacts = new HashSet<>();
 		artifacts.add(new DefaultArtifact(groupId + ":" + artifactId + ":" + version));
 	}
-	@Override
-	public boolean useOptionalImports()
-	{
-		return useOptionalImports;
-	}
 	
-	public void setOptionalImports(boolean useOptionalImports)
+	public File getBndDirectory()
 	{
-		this.useOptionalImports = useOptionalImports;
+		return bndDirectory;
+	}
+	public void setBndDirectory(File bndDirectory)
+	{
+		this.bndDirectory = bndDirectory;
 	}
 }

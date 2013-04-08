@@ -130,9 +130,8 @@ public class DefaultBundleGenerator implements BundleGenerator
 	}
 
 	@Override
-	public String getVersion(Artifact artifact)
+	public String getVersion(String baseVersion)
 	{
-		String baseVersion = artifact.getBaseVersion();
 		if(baseVersion.endsWith("-SNAPSHOT"))
 			return baseVersion.substring(0, baseVersion.lastIndexOf("-SNAPSHOT")).replace('-', '.') + ".qualifier";
 		else

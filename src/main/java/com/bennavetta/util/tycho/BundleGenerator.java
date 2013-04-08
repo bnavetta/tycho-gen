@@ -35,11 +35,11 @@ public interface BundleGenerator
 	
 	/**
 	 * Generate the bundle's version
-	 * @param artifact the Maven artifact
+	 * @param mavenVersion a Maven version string
 	 * @return a valid OSGi version
 	 * @see <a href="http://wiki.osgi.org/wiki/Bundle-Version">Bundle-Version<a>
 	 */
-	public String getVersion(Artifact artifact);
+	public String getVersion(String mavenVersion);
 
 	/**
 	 * Generate the bundle's name
