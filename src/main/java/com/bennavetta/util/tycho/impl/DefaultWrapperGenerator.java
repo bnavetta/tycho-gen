@@ -247,6 +247,7 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 			//pom.setVersion(artifact.getBaseVersion());
 			
 			// Add the wrapper modules of the project's dependencies so Tycho makes them available during compilation
+			/* - Not needed: tycho adds everything from the reactor
 			for(Map.Entry<String, Artifact> dependency : deps.entrySet())
 			{
 				org.apache.maven.model.Dependency modelDep = new org.apache.maven.model.Dependency();
@@ -256,6 +257,7 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 				modelDep.setVersion(dependency.getValue().getBaseVersion());
 				pom.addDependency(modelDep);
 			}
+			*/
 			log.debug("POM: {}", pom);
 			
 			// Assume tycho is applied by a parent project. Otherwise, things get really complicated
