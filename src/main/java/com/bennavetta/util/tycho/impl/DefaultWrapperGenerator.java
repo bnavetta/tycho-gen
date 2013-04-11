@@ -38,9 +38,7 @@ import java.util.jar.Manifest;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Parent;
 import org.apache.maven.model.Repository;
-import org.apache.maven.model.building.ModelBuildingException;
 import org.apache.maven.model.io.xpp3.MavenXpp3Writer;
-import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
@@ -66,6 +64,7 @@ import org.sonatype.aether.util.graph.PreorderNodeListGenerator;
 
 import aQute.lib.osgi.Analyzer;
 
+import com.bennavetta.util.tycho.ArtifactInfo;
 import com.bennavetta.util.tycho.BundleGenerator;
 import com.bennavetta.util.tycho.WrapException;
 import com.bennavetta.util.tycho.WrapRequest;
@@ -74,6 +73,7 @@ import com.bennavetta.util.tycho.maven.Maven;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
@@ -91,9 +91,9 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 		
 		CollectRequest collect = new CollectRequest();
 		collect.addRepository(Maven.central());
-		for(Artifact artifact : request.getArtifacts())
+		for(ArtifactInfo artifactInfo : request.getArtifacts())
 		{
-			collect.addDependency(new Dependency(artifact, JavaScopes.COMPILE));
+			collect.addDependency(new Dependency(artifactInfo.getArtifact(), JavaScopes.COMPILE));
 		}
 		
 		// Add explicitly provided repositories
@@ -123,7 +123,16 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 			{
 				if(node.getVersion().equals(resolver.getVersion(node)))
 				{
-					String module = createWrapper(request, session, node);
+					ArtifactInfo additionalInfo = null;
+					for(ArtifactInfo info : request.getArtifacts())
+					{
+						if(areEqualEnough(info.getArtifact(), node.getDependency().getArtifact()))
+						{
+							additionalInfo = info;
+							break;
+						}
+					}
+					String module = createWrapper(request, session, node, additionalInfo);
 					if(module != null)
 						modules.add(module);
 				}
@@ -143,6 +152,23 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 		}
 	}
 	
+	/**
+	 * Only look at GAV - no classifier, extension, etc.
+	 * @param artifact
+	 * @param artifact2
+	 * @return
+	 */
+	private boolean areEqualEnough(Artifact artifact, Artifact artifact2)
+	{
+		if(artifact == artifact2)
+			return true;
+		if(artifact.equals(artifact2))
+			return true;
+		return artifact.getGroupId().equals(artifact2.getGroupId()) &&
+				artifact.getArtifactId().equals(artifact2.getArtifactId()) &&
+				artifact.getVersion().equals(artifact2.getVersion());
+	}
+
 	private void writeModules(List<String> modules, File pomFile) throws JDOMException, IOException
 	{
 		SAXBuilder builder = new SAXBuilder();
@@ -180,7 +206,7 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 		}
 	}
 
-	private String createWrapper(WrapRequest request, RepositorySystemSession session, DependencyNode node) throws WrapException
+	private String createWrapper(WrapRequest request, RepositorySystemSession session, DependencyNode node, ArtifactInfo info) throws WrapException
 	{
 		Artifact artifact = node.getDependency().getArtifact();
 		Map<String, Artifact> deps = new HashMap<>(node.getChildren().size());
@@ -199,7 +225,15 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 		try
 		{
 			log.info("Wrapping {}", artifact);
-			String symbolicName = metadata.getSymbolicName(artifact);
+			String symbolicName = null;
+			if(info != null && !Strings.isNullOrEmpty(info.getSymbolicName()))
+			{
+				symbolicName = info.getSymbolicName();
+			}
+			else
+			{
+				symbolicName = metadata.getSymbolicName(artifact);
+			}
 			String bundleName = metadata.getBundleName(artifact);
 			
 			Model pom = new Model();

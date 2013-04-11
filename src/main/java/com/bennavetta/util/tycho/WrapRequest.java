@@ -34,7 +34,7 @@ public interface WrapRequest
 	 * The artifacts to wrap. This does not need to include transitive dependencies.
 	 * @return a list of artifacts. Must not be {@code null}
 	 */
-	public Iterable<Artifact> getArtifacts();
+	public Iterable<ArtifactInfo> getArtifacts();
 	
 	/**
 	 * Any repositories needed to locate the wrapped projects.

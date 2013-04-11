@@ -26,12 +26,13 @@ import org.apache.maven.model.Repository;
 import org.sonatype.aether.artifact.Artifact;
 import org.sonatype.aether.util.artifact.DefaultArtifact;
 
+import com.bennavetta.util.tycho.ArtifactInfo;
 import com.bennavetta.util.tycho.WrapRequest;
 
 public class DefaultWrapRequest implements WrapRequest
 {
 	private Model parent;
-	private Set<Artifact> artifacts;
+	private Set<ArtifactInfo> artifacts;
 	private List<Repository> repositories;
 	private File bndDirectory;
 	
@@ -61,28 +62,33 @@ public class DefaultWrapRequest implements WrapRequest
 	}
 	
 	@Override
-	public Set<Artifact> getArtifacts()
+	public Set<ArtifactInfo> getArtifacts()
 	{
 		return artifacts;
 	}
 	
-	public void setArtifacts(Set<Artifact> artifacts)
+	public void setArtifacts(Set<ArtifactInfo> artifacts)
 	{
 		this.artifacts = artifacts;
+	}
+	
+	public void addArtifact(ArtifactInfo info)
+	{
+		if(artifacts == null)
+			artifacts = new HashSet<>();
+		artifacts.add(info);
 	}
 	
 	public void addArtifact(Artifact artifact)
 	{
 		if(artifacts == null)
 			artifacts = new HashSet<>();
-		artifacts.add(artifact);
+		artifacts.add(new DefaultArtifactInfo(artifact));
 	}
 	
 	public void addArtifact(String groupId, String artifactId, String version)
 	{
-		if(artifacts == null)
-			artifacts = new HashSet<>();
-		artifacts.add(new DefaultArtifact(groupId + ":" + artifactId + ":" + version));
+		addArtifact(new DefaultArtifact(groupId + ":" + artifactId + ":" + version));
 	}
 	
 	public File getBndDirectory()

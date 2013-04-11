@@ -23,7 +23,9 @@ import org.apache.maven.model.Model;
 import org.apache.maven.model.Repository;
 import org.jdom2.Document;
 import org.jdom2.Element;
+import org.sonatype.aether.util.artifact.DefaultArtifact;
 
+import com.bennavetta.util.tycho.impl.DefaultArtifactInfo;
 import com.bennavetta.util.tycho.impl.DefaultWrapRequest;
 import com.bennavetta.util.tycho.maven.Maven;
 
@@ -67,7 +69,8 @@ public class XmlWrapDescriptorParser
 			String artifactId = artifactDescriptor.getAttributeValue("artifactId");
 			String version = artifactDescriptor.getAttributeValue("version");
 			log.debug("Adding artifact {}:{}:{}", groupId, artifactId, version);
-			req.addArtifact(groupId, artifactId, version);
+			DefaultArtifactInfo info = new DefaultArtifactInfo(new DefaultArtifact(groupId + ":" + artifactId + ":" + version), artifactDescriptor.getAttributeValue("symbolicName"));
+			req.addArtifact(info);
 		}
 		return req;
 	}
