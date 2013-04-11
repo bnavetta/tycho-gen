@@ -132,8 +132,8 @@ public class DefaultBundleGenerator implements BundleGenerator
 	@Override
 	public String getVersion(String baseVersion)
 	{
-		if(baseVersion.endsWith("-SNAPSHOT"))
-			return baseVersion.substring(0, baseVersion.lastIndexOf("-SNAPSHOT")).replace('-', '.') + ".qualifier";
+		if(baseVersion.endsWith("SNAPSHOT"))
+			return baseVersion.substring(0, baseVersion.lastIndexOf("SNAPSHOT")).replace('-', '.') + "qualifier";
 		else
 			return baseVersion.replace('-', '.');
 	}

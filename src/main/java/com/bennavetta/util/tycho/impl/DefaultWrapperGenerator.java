@@ -156,15 +156,22 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 		}
 		for(String module : modules)
 		{
+			boolean exists = false;
 			for(Element existingModule : modulesElem.getChildren())
 			{
-				System.out.println(existingModule.getTextTrim());
 				if(existingModule.getTextTrim().equals(module))
-					continue;
+				{
+					
+					exists = true;
+					break;
+				}
 			}
-			Element moduleElem = new Element("module", pomNs);
-			moduleElem.setText(module);
-			modulesElem.addContent(moduleElem);
+			if(!exists)
+			{
+				Element moduleElem = new Element("module", pomNs);
+				moduleElem.setText(module);
+				modulesElem.addContent(moduleElem);
+			}
 		}
 		XMLOutputter xout = new XMLOutputter(Format.getPrettyFormat().setIndent("\t"));
 		try(FileOutputStream out = new FileOutputStream(pomFile))
@@ -194,7 +201,6 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 			log.info("Wrapping {}", artifact);
 			String symbolicName = metadata.getSymbolicName(artifact);
 			String bundleName = metadata.getBundleName(artifact);
-			//TODO: instead of editing the model, build a regular XML DOM to keep it from having everything added
 			
 			Model pom = new Model();
 			pom.setParent(asParent(request.getParent()));
@@ -225,15 +231,12 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 			File projectDir = new File(request.getParent().getProjectDirectory(), symbolicName);
 			log.debug("Project dir: {}", projectDir);
 			pom.setPomFile(new File(projectDir, "pom.xml"));
-			if(projectDir.exists())
-			{
-				Utils.delete(projectDir.toPath());
-			}
-			if(!projectDir.mkdir()) // parent should exist
+			if(!projectDir.isDirectory() && !projectDir.mkdir()) // parent should exist
 				throw new WrapException("Unable to create project directory", request);
 			
 			pom.getParent().setRelativePath(null); // uses absolute paths
 			// Write out the wrapper pom
+			pom.getPomFile().delete();
 			try(OutputStream pomOut = new FileOutputStream(pom.getPomFile()))
 			{
 				MavenXpp3Writer pomWriter = new MavenXpp3Writer();
@@ -287,10 +290,11 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 					if(entry.getName().endsWith("MANIFEST.MF"))
 						continue;
 					
-					includes.add(Iterables.get(Splitter.on('/').split(entry.getName()), 0)); // get the first path component (dir or file in root)
+					String path = Iterables.get(Splitter.on('/').split(entry.getName()), 0); // get the first path component (dir or file in root)
 					File outFile = new File(projectDir, entry.getName());
 					if(entry.isDirectory())
 					{
+						path += "/";
 						if(!outFile.isDirectory() && !outFile.mkdirs())
 							throw new WrapException("Unable to create directory: " + outFile, request);
 					}
@@ -304,6 +308,7 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 									Files.newOutputStreamSupplier(outFile));
 						}
 					}
+					includes.add(path); 
 				}
 			}
 			// write out build.properties
@@ -382,17 +387,5 @@ public class DefaultWrapperGenerator implements WrapperGenerator
 	public void setBundleGenerator(BundleGenerator generator)
 	{
 		this.metadata = generator;
-	}
-	
-	public static void main(String[] args) throws ModelBuildingException, ComponentLookupException, WrapException
-	{
-		DefaultWrapperGenerator generator = new DefaultWrapperGenerator();
-		DefaultWrapRequest req = new DefaultWrapRequest();
-		req.setParent(Maven.createModel(new File("/Users/ben/workspaces/gae-website/appsite-client/thirdparty/pom.xml")));
-		req.addArtifact("org.codehaus.jedi", "jedi-core", "3.0.5");
-		req.addArtifact("org.springframework", "spring-webmvc", "3.2.2.RELEASE");
-		req.addArtifact("org.springframework", "spring-orm", "2.5.6");
-		generator.generate(req);
-		// then write modified parent pom
 	}
 }
